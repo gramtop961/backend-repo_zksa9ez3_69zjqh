@@ -1,48 +1,58 @@
 """
-Database Schemas
+Database Schemas for Household Tool Sharing App
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model maps to a MongoDB collection (lowercased class name).
+- User -> "user"
+- Tool -> "tool"
+- Loan -> "loan"
+- Review -> "review"
 """
-
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 
-# Example schemas (replace with your own):
+class GeoPoint(BaseModel):
+    lat: float = Field(..., ge=-90, le=90, description="Latitude")
+    lng: float = Field(..., ge=-180, le=180, description="Longitude")
+
+class AvailabilitySlot(BaseModel):
+    start: datetime
+    end: datetime
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    name: str = Field(..., description="Display name")
+    email: Optional[str] = Field(None, description="Email address")
+    address: Optional[str] = Field(None, description="Optional address")
+    location: Optional[GeoPoint] = Field(None, description="Last known location")
+    tokens: int = Field(10, ge=0, description="Trust token balance")
+    rating_avg: float = Field(0.0, ge=0, le=5)
+    rating_count: int = Field(0, ge=0)
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Tool(BaseModel):
+    owner_id: str = Field(..., description="Owner user id (string)")
+    title: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    condition: Optional[str] = Field(None, description="e.g., New, Good, Fair")
+    location: Optional[GeoPoint] = None
+    availability: List[AvailabilitySlot] = Field(default_factory=list)
+    images: List[str] = Field(default_factory=list)
+    is_active: bool = True
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Loan(BaseModel):
+    tool_id: str
+    lender_id: str
+    borrower_id: str
+    status: str = Field("requested", description="requested|approved|active|completed|cancelled|rejected")
+    tokens_spent: int = 1
+    requested_at: Optional[datetime] = None
+    approved_at: Optional[datetime] = None
+    return_due_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Review(BaseModel):
+    loan_id: str
+    from_user_id: str
+    to_user_id: str
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = None
